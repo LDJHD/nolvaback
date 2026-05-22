@@ -6,6 +6,11 @@ import Offer from '#models/offer'
 import ProviderPhoto from '#models/provider_photo'
 import Availability from '#models/availability'
 
+const boolColumn = {
+  prepare: (value: unknown) => (value === true || value === 1 || value === '1' ? 1 : 0),
+  consume: (value: unknown) => value === true || value === 1 || value === '1',
+}
+
 export default class ServiceProvider extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -58,10 +63,10 @@ export default class ServiceProvider extends BaseModel {
   })
   declare zones: string[] | null
 
-  @column()
+  @column(boolColumn)
   declare travelPossible: boolean
 
-  @column()
+  @column(boolColumn)
   declare travelFees: boolean
 
   @column()
@@ -82,10 +87,10 @@ export default class ServiceProvider extends BaseModel {
   @column()
   declare status: string
 
-  @column()
+  @column(boolColumn)
   declare isVerified: boolean
 
-  @column()
+  @column(boolColumn)
   declare isAvailable: boolean
 
   @column()

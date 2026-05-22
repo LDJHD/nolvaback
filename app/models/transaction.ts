@@ -31,6 +31,9 @@ export default class Transaction extends BaseModel {
   declare ticketType: string | null
 
   @column()
+  declare eventTicketTypeId: number | null
+
+  @column()
   declare quantity: number
 
   @column()
@@ -80,6 +83,21 @@ export default class Transaction extends BaseModel {
 
   @column()
   declare adminNote: string | null
+
+  @column()
+  declare fedapayPayoutId: string | null
+
+  @column()
+  declare payoutMethod: string | null
+
+  @column()
+  declare payoutDestination: string | null
+
+  @column()
+  declare payoutStatus: string | null
+
+  @column.dateTime()
+  declare payoutAt: DateTime | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

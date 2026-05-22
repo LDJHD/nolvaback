@@ -3,6 +3,7 @@ import vine from '@vinejs/vine'
 import Reservation from '#models/reservation'
 import Ticket from '#models/ticket'
 import Event from '#models/event'
+import EventTicketType from '#models/event_ticket_type'
 import Transaction from '#models/transaction'
 import Commission from '#models/commission'
 import ServiceProvider from '#models/service_provider'
@@ -13,6 +14,10 @@ import EscrowReleaseService from '#services/escrow_release_service'
 import QuoteRequest from '#models/quote_request'
 import QuoteFlowService from '#services/quote_flow_service'
 import { createFedaPayTransaction, retrieveFedaPayTransaction } from '#services/fedapay_service'
+import AdminPaymentService from '#services/admin_payment_service'
+import AdminLogService from '#services/admin_log_service'
+import AdminActionLog from '#models/admin_action_log'
+import NotificationService from '#services/notification_service'
 
 export default class PaymentsController {
   // ═══════════════════════════════════════════════════════════
@@ -28,7 +33,8 @@ export default class PaymentsController {
 
     const schema = vine.object({
       event_id: vine.number(),
-      type: vine.enum(['solo', 'couple', 'vip', 'standard']),
+      ticket_type_id: vine.number().optional(),
+      type: vine.string().trim().optional(),
       quantity: vine.number().min(1).max(20).optional(),
     })
 
@@ -39,21 +45,56 @@ export default class PaymentsController {
       .where('id', data.event_id)
       .where('status', 'upcoming')
       .where('is_approved', true)
+      .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
       .firstOrFail()
 
-    // Vérifier disponibilité
-    const remaining =
-      event.ticketCount > 0 ? event.ticketCount - event.ticketsSold : 999
-    if (event.ticketCount > 0 && remaining < quantity) {
+    let ticketTypeRow: EventTicketType | null = null
+    let ticketTypeLabel = data.type || 'standard'
+
+    if (data.ticket_type_id) {
+      ticketTypeRow =
+        event.ticketTypes.find((t) => t.id === data.ticket_type_id) ||
+        (await EventTicketType.query()
+          .where('id', data.ticket_type_id)
+          .where('event_id', event.id)
+          .first())
+      if (!ticketTypeRow) {
+        return response.badRequest({ message: 'Type de billet invalide pour cet événement' })
+      }
+      ticketTypeLabel = ticketTypeRow.label
+      const remaining = ticketTypeRow.available
+      if (ticketTypeRow.quantity > 0 && remaining < quantity) {
+        return response.badRequest({
+          message: `Il ne reste que ${remaining} billet(s) « ${ticketTypeRow.label} » disponible(s)`,
+        })
+      }
+    } else if (event.ticketTypes.length > 0) {
       return response.badRequest({
-        message: `Il ne reste que ${remaining} billet(s) disponible(s)`,
+        message: 'Choisissez un type de billet pour cet événement',
       })
+    } else {
+      const remaining =
+        event.ticketCount > 0 ? event.ticketCount - event.ticketsSold : 999
+      if (event.ticketCount > 0 && remaining < quantity) {
+        return response.badRequest({
+          message: `Il ne reste que ${remaining} billet(s) disponible(s)`,
+        })
+      }
     }
 
-    const unitPrice = Number(event.ticketPrice)
+    const unitPrice = ticketTypeRow
+      ? Number(ticketTypeRow.price)
+      : Number(event.ticketPrice)
     const amount = unitPrice * quantity
     if (amount <= 0) {
-      return this.createFreeTicket(user, event, data.type, quantity, response)
+      return this.createFreeTicket(
+        user,
+        event,
+        ticketTypeLabel,
+        quantity,
+        response,
+        ticketTypeRow?.id
+      )
     }
 
     // Calculer la commission NOLVA (PDF section 4)
@@ -68,7 +109,8 @@ export default class PaymentsController {
       type: 'ticket_purchase',
       userId: user.id,
       eventId: event.id,
-      ticketType: data.type,
+      ticketType: ticketTypeLabel,
+      eventTicketTypeId: ticketTypeRow?.id ?? null,
       quantity,
       amount,
       commissionAmount,
@@ -83,7 +125,7 @@ export default class PaymentsController {
     // Créer la transaction FedaPay
     try {
       const fedapayTxn = await createFedaPayTransaction({
-        description: `Billet ${data.type} x${quantity} - ${event.title}`,
+        description: `Billet ${ticketTypeLabel} x${quantity} - ${event.title}`,
         amount: amount,
         currency: { iso: 'XOF' },
         callback_url: `${env.get('FRONTEND_URL')}/paiement/confirmation?type=ticket&ref=${txnRef}`,
@@ -115,7 +157,7 @@ export default class PaymentsController {
     } catch (err: any) {
       // Fallback sandbox si FedaPay échoue
       console.error('[FedaPay] Erreur création transaction:', err.message)
-      return this.fallbackSandboxTicket(transaction, event, data.type, quantity, user, response)
+      return this.fallbackSandboxTicket(transaction, event, ticketTypeLabel, quantity, user, response)
     }
   }
 
@@ -196,6 +238,14 @@ export default class PaymentsController {
 
     event.ticketsSold += quantity
     await event.save()
+
+    if (transaction.eventTicketTypeId) {
+      const ett = await EventTicketType.find(transaction.eventTicketTypeId)
+      if (ett) {
+        ett.sold += quantity
+        await ett.save()
+      }
+    }
 
     transaction.ticketId = tickets[0].id
     transaction.status = 'paid'
@@ -523,12 +573,14 @@ export default class PaymentsController {
    * Admin : Résoudre un litige (PDF section 3)
    * Seul un administrateur peut : libérer, rembourser, ou partager
    */
-  async resolveDispute({ request, response }: HttpContext) {
+  async resolveDispute({ auth, request, response }: HttpContext) {
+    const admin = auth.user!
+
     const schema = vine.object({
       transaction_ref: vine.string(),
       action: vine.enum(['release', 'refund', 'split']),
-      split_percentage: vine.number().optional(), // Si action = split
-      note: vine.string().optional(),
+      split_percentage: vine.number().optional(),
+      note: vine.string().minLength(3).optional(),
     })
 
     const data = await vine.validate({ schema, data: request.all() })
@@ -536,26 +588,24 @@ export default class PaymentsController {
     const transaction = await Transaction.query()
       .where('reference', data.transaction_ref)
       .where('status', 'disputed')
+      .preload('reservation', (q) => q.preload('provider'))
+      .preload('user')
       .firstOrFail()
 
     switch (data.action) {
       case 'release':
-        // Libérer les fonds au bénéficiaire
-        transaction.status = 'released'
-        transaction.releasedAt = DateTime.now()
+        transaction.status = 'paid'
         break
 
       case 'refund':
-        // Rembourser le client
         transaction.status = 'refunded'
         break
 
       case 'split':
-        // Partager le montant (% au prestataire, reste au client)
-        transaction.status = 'released'
-        transaction.releasedAt = DateTime.now()
+        transaction.status = 'paid'
         if (data.split_percentage) {
-          transaction.netAmount = Math.round(transaction.amount * data.split_percentage / 100)
+          transaction.netAmount = Math.round((transaction.amount * data.split_percentage) / 100)
+          transaction.commissionAmount = transaction.amount - transaction.netAmount
         }
         break
     }
@@ -569,15 +619,41 @@ export default class PaymentsController {
         if (data.action === 'refund') {
           reservation.status = 'cancelled'
           reservation.paymentStatus = 'refunded'
-        } else if (data.action === 'release') {
-          reservation.status = 'completed'
+        } else {
+          reservation.status = 'confirmed'
+          reservation.paymentStatus = 'fully_paid'
         }
         await reservation.save()
       }
     }
 
+    const userIds = [transaction.userId]
+    const providerUserId = transaction.reservation?.provider?.userId
+    if (providerUserId) userIds.push(providerUserId)
+
+    const actionLabel =
+      data.action === 'release'
+        ? 'libération des fonds au prestataire'
+        : data.action === 'refund'
+          ? 'remboursement client'
+          : 'partage du montant'
+
+    await NotificationService.notifyUsers(
+      userIds,
+      'dispute_resolved',
+      'Litige traité par NOLVA',
+      `Décision : ${actionLabel}. ${data.note ? `Motif : ${data.note}` : ''}`.trim(),
+      { transaction_ref: transaction.reference, action: data.action }
+    )
+
+    await AdminLogService.log(admin.id, 'dispute_resolved', 'transaction', transaction.id, {
+      transactionId: transaction.id,
+      note: data.note,
+      metadata: { action: data.action, split_percentage: data.split_percentage },
+    })
+
     return response.ok({
-      message: `Litige résolu : ${data.action}`,
+      message: `Litige résolu : ${data.action}. Utilisez « Payer via FedaPay » si un reversement est nécessaire.`,
       transaction,
     })
   }
@@ -646,10 +722,12 @@ export default class PaymentsController {
   /**
    * Admin : Geler un paiement
    */
-  async freezeTransaction({ request, response }: HttpContext) {
+  async freezeTransaction({ auth, request, response }: HttpContext) {
+    const admin = auth.user!
+
     const schema = vine.object({
       transaction_ref: vine.string(),
-      note: vine.string().optional(),
+      note: vine.string().trim().minLength(5),
     })
 
     const data = await vine.validate({ schema, data: request.all() })
@@ -661,10 +739,94 @@ export default class PaymentsController {
 
     transaction.status = 'disputed'
     transaction.disputedAt = DateTime.now()
-    transaction.adminNote = data.note || 'Gelé par un administrateur'
+    transaction.disputeReason = data.note
+    transaction.adminNote = data.note
     await transaction.save()
 
-    return response.ok({ message: 'Paiement gelé', transaction })
+    if (transaction.reservationId) {
+      const reservation = await Reservation.find(transaction.reservationId)
+      if (reservation) {
+        reservation.status = 'disputed'
+        await reservation.save()
+      }
+    }
+
+    await AdminPaymentService.notifyFreeze(transaction, data.note, admin.id)
+
+    return response.ok({ message: 'Paiement gelé — client et prestataire notifiés', transaction })
+  }
+
+  async adminExecutePayout({ auth, request, response }: HttpContext) {
+    const admin = auth.user!
+
+    const schema = vine.object({
+      transaction_id: vine.number(),
+      amount: vine.number().min(1).optional(),
+      payout_method: vine.string().trim(),
+      payout_destination: vine.string().trim(),
+      note: vine.string().trim().optional(),
+    })
+
+    const data = await vine.validate({ schema, data: request.all() })
+
+    try {
+      const result = await AdminPaymentService.executeProviderPayout(admin.id, data)
+      return response.ok({
+        message: 'Reversement FedaPay envoyé au prestataire',
+        transaction: result.transaction,
+        payoutAmount: result.payoutAmount,
+        commissionAmount: result.transaction.commissionAmount,
+        fedapayPayoutId: result.fedapayPayoutId,
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur reversement'
+      return response.badRequest({ message })
+    }
+  }
+
+  async adminDisputeRepayment({ auth, request, response }: HttpContext) {
+    const admin = auth.user!
+
+    const schema = vine.object({
+      transaction_ref: vine.string(),
+      amount: vine.number().min(1),
+      mode: vine.enum(['collect_client', 'payout_provider']),
+      payout_method: vine.string().trim().optional(),
+      payout_destination: vine.string().trim().optional(),
+      note: vine.string().trim().optional(),
+    })
+
+    const data = await vine.validate({ schema, data: request.all() })
+
+    try {
+      const result = await AdminPaymentService.initiateDisputeRepayment(admin.id, data)
+      return response.ok({
+        message:
+          result.type === 'collect'
+            ? 'Lien de paiement client créé (FedaPay)'
+            : 'Reversement prestataire effectué (FedaPay)',
+        ...result,
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur'
+      return response.badRequest({ message })
+    }
+  }
+
+  async adminActionHistory({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const transactionId = request.input('transaction_id')
+
+    const query = AdminActionLog.query()
+      .preload('admin', (q) => q.select(['id', 'first_name', 'last_name', 'email']))
+      .orderBy('created_at', 'desc')
+
+    if (transactionId) {
+      query.where('transaction_id', transactionId)
+    }
+
+    const logs = await query.paginate(page, 30)
+    return response.ok(logs)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -721,6 +883,20 @@ export default class PaymentsController {
     return response.ok({ message: 'Commission mise à jour', commission })
   }
 
+  async deleteCommission({ params, response }: HttpContext) {
+    const commission = await Commission.findOrFail(params.id)
+
+    if (commission.isDefault) {
+      return response.badRequest({
+        message:
+          'Les deux taux par défaut (billets et prestations) ne peuvent pas être supprimés. Modifiez le taux à la place.',
+      })
+    }
+
+    await commission.delete()
+    return response.ok({ message: 'Commission supprimée' })
+  }
+
   // ═══════════════════════════════════════════════════════════
   // WEBHOOK FedaPay
   // ═══════════════════════════════════════════════════════════
@@ -765,7 +941,8 @@ export default class PaymentsController {
     event: any,
     type: string,
     quantity: number,
-    response: any
+    response: any,
+    eventTicketTypeId?: number
   ) {
     const tickets = []
     for (let i = 0; i < quantity; i++) {
@@ -783,6 +960,14 @@ export default class PaymentsController {
 
     event.ticketsSold += quantity
     await event.save()
+
+    if (eventTicketTypeId) {
+      const ett = await EventTicketType.find(eventTicketTypeId)
+      if (ett) {
+        ett.sold += quantity
+        await ett.save()
+      }
+    }
 
     return response.created({
       message: `${quantity} billet(s) gratuit(s) obtenu(s) !`,

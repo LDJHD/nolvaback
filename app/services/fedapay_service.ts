@@ -12,6 +12,12 @@ type FedaPayModule = {
     }>
     retrieve: (id: string) => Promise<{ status: string }>
   }
+  Payout: {
+    create: (payload: Record<string, unknown>) => Promise<{
+      id: string | number
+      sendNow: (opts?: Record<string, unknown>) => Promise<unknown>
+    }>
+  }
 }
 
 let sdk: FedaPayModule | null = null
@@ -33,4 +39,11 @@ export async function createFedaPayTransaction(payload: Record<string, unknown>)
 export async function retrieveFedaPayTransaction(id: string) {
   const FedaPay = loadSdk()
   return FedaPay.Transaction.retrieve(id)
+}
+
+export async function createAndSendFedaPayPayout(payload: Record<string, unknown>) {
+  const FedaPay = loadSdk()
+  const payout = await FedaPay.Payout.create(payload)
+  await payout.sendNow()
+  return payout
 }

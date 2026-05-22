@@ -20,15 +20,24 @@ export default class QuoteRequestsController {
       provider_type: vine.string().trim().optional(),
       event_type: vine.string().trim(),
       event_date: vine.string().trim(),
-      start_time: vine.string().trim(),
-      end_time: vine.string().trim(),
+      start_time: vine.string().trim().optional(),
+      end_time: vine.string().trim().optional(),
       location: vine.string().optional(),
       city: vine.string().trim().optional(),
-      proposed_price: vine.number().min(1),
+      guest_count: vine.number().min(1).optional(),
+      budget: vine.number().min(1).optional(),
+      proposed_price: vine.number().min(1).optional(),
       message: vine.string().trim(),
     })
 
     const data = await vine.validate({ schema, data: request.all() })
+
+    const priceAmount = data.proposed_price ?? data.budget ?? null
+    if (data.provider_id && priceAmount === null) {
+      return response.badRequest({
+        message: 'Indiquez un prix proposé (montant en FCFA).',
+      })
+    }
 
     if (!data.provider_id && !data.provider_type) {
       return response.badRequest({
@@ -80,11 +89,11 @@ export default class QuoteRequestsController {
       providerType,
       eventType: data.event_type,
       eventDate,
-      startTime: data.start_time,
-      endTime: data.end_time,
+      startTime: data.start_time ?? null,
+      endTime: data.end_time ?? null,
       location: data.location ?? data.city ?? null,
-      proposedPrice: data.proposed_price,
-      budget: data.proposed_price,
+      proposedPrice: priceAmount,
+      budget: priceAmount,
       message: data.message,
       status: 'pending',
     })
@@ -98,7 +107,8 @@ export default class QuoteRequestsController {
     )
     await QuoteFlowService.logActivity(quoteRequest.id, 'quote_created', user.id, 'client', {
       provider_id: providerId,
-      proposed_price: data.proposed_price,
+      proposed_price: priceAmount,
+      budget: data.budget,
       event_type: data.event_type,
     })
 

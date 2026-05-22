@@ -13,6 +13,7 @@ export default class ProvidersController {
     const priceMin = request.input('price_min')
     const priceMax = request.input('price_max')
     const available = request.input('available')
+    const search = request.input('search', '').trim()
 
     const query = ServiceProvider.query()
       .where('status', 'active')
@@ -23,6 +24,16 @@ export default class ProvidersController {
     if (type) query.where('type', type)
     if (city) query.where('city', city)
     if (available === 'true') query.where('is_available', true)
+    if (search) {
+      const term = `%${search}%`
+      query.where((q) => {
+        q.whereILike('business_name', term)
+          .orWhereILike('specialty', term)
+          .orWhereILike('description', term)
+          .orWhereILike('city', term)
+          .orWhereILike('type', term)
+      })
+    }
 
     if (priceMin || priceMax) {
       query.whereHas('offers', (q) => {
@@ -42,7 +53,7 @@ export default class ProvidersController {
       .where('status', 'active')
       .preload('user', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
       .preload('offers', (q) => q.where('is_active', true))
-      .preload('photos', (q) => q.orderBy('order', 'asc'))
+      .preload('photos', (q) => q.where('type', 'photo').orderBy('order', 'asc').orderBy('id', 'asc'))
       .preload('availabilities')
       .firstOrFail()
 
@@ -71,7 +82,7 @@ export default class ProvidersController {
     const provider = await ServiceProvider.query()
       .where('user_id', user.id)
       .preload('offers')
-      .preload('photos')
+      .preload('photos', (q) => q.orderBy('order', 'asc').orderBy('id', 'asc'))
       .preload('availabilities')
       .firstOrFail()
 
@@ -103,9 +114,9 @@ export default class ProvidersController {
       facebook: vine.string().optional(),
       tiktok: vine.string().optional(),
       is_available: vine.boolean().optional(),
-      profile_photo: vine.string().optional(),
+      profile_photo: vine.string().trim().minLength(50).optional(),
       momo_network: vine.enum(PAYOUT_METHODS).optional(),
-      momo_phone: vine.string().trim().maxLength(120).optional(),
+      momo_phone: vine.string().trim().maxLength(200).optional(),
     })
 
     const data = await vine.validate({ schema, data: request.all() })

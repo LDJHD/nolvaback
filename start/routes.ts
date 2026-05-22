@@ -37,6 +37,7 @@ router.group(() => {
   router.put('/offers/:id', '#controllers/offers_controller.update')
   router.delete('/offers/:id', '#controllers/offers_controller.destroy')
   router.post('/photos', '#controllers/provider_photos_controller.store')
+  router.post('/photos/batch', '#controllers/provider_photos_controller.storeBatch')
   router.delete('/photos/:id', '#controllers/provider_photos_controller.destroy')
   router.get('/quote-requests', '#controllers/quote_requests_controller.providerRequests')
   router.get('/quote-requests/:id', '#controllers/quote_requests_controller.providerShow')
@@ -93,12 +94,16 @@ router.group(() => {
   router.post('/escrow/release', '#controllers/payments_controller.adminRunEscrowRelease')
   router.get('/commissions/stats', '#controllers/payments_controller.adminCommissionStats')
   router.post('/transactions/freeze', '#controllers/payments_controller.freezeTransaction')
+  router.post('/payouts/execute', '#controllers/payments_controller.adminExecutePayout')
+  router.post('/disputes/repayment', '#controllers/payments_controller.adminDisputeRepayment')
+  router.get('/action-history', '#controllers/payments_controller.adminActionHistory')
   // Litiges
   router.post('/disputes/resolve', '#controllers/payments_controller.resolveDispute')
   // Commissions CRUD
   router.get('/commissions', '#controllers/payments_controller.listCommissions')
   router.post('/commissions', '#controllers/payments_controller.createCommission')
   router.put('/commissions/:id', '#controllers/payments_controller.updateCommission')
+  router.delete('/commissions/:id', '#controllers/payments_controller.deleteCommission')
   // Validation événements
   router.get('/events/pending', '#controllers/events_controller.adminPending')
   router.post('/events/:id/approve', '#controllers/events_controller.adminApprove')
@@ -124,6 +129,7 @@ router.group(() => {
 
 // EVENEMENTS (PUBLIC)
 router.group(() => {
+  router.get('/publish-suggestions', '#controllers/events_controller.publishSuggestions')
   router.get('/', '#controllers/events_controller.index')
   router.get('/:id', '#controllers/events_controller.show')
   router.post('/', '#controllers/events_controller.store').use(middleware.auth())
