@@ -6,7 +6,6 @@ import Event from '#models/event'
 import EventTicketType from '#models/event_ticket_type'
 import Transaction from '#models/transaction'
 import Commission from '#models/commission'
-import ServiceProvider from '#models/service_provider'
 import env from '#start/env'
 import crypto from 'node:crypto'
 import { DateTime } from 'luxon'
@@ -977,10 +976,10 @@ export default class PaymentsController {
 
   private async fallbackSandboxTicket(
     transaction: Transaction,
-    event: any,
-    type: string,
-    quantity: number,
-    user: any,
+    _event: any,
+    _type: string,
+    _quantity: number,
+    _user: any,
     response: any
   ) {
     const fakeId = `SANDBOX_${Date.now()}`
@@ -1003,7 +1002,7 @@ export default class PaymentsController {
   /**
    * Fallback sandbox pour réservations
    */
-  private async fallbackSandboxReservation(transaction: Transaction, reservation: any, response: any) {
+  private async fallbackSandboxReservation(transaction: Transaction, _reservation: any, response: any) {
     const fakeId = `SANDBOX_${Date.now()}`
     transaction.fedapayTransactionId = fakeId
     await transaction.save()

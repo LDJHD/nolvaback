@@ -1,8 +1,6 @@
 import env from '#start/env'
 import { DateTime } from 'luxon'
 import Transaction from '#models/transaction'
-import ServiceProvider from '#models/service_provider'
-import User from '#models/user'
 import { createAndSendFedaPayPayout, createFedaPayTransaction } from '#services/fedapay_service'
 import {
   normalizePayoutPhone,

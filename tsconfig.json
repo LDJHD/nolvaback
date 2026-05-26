@@ -15,5 +15,6 @@
       "#config/*": ["./config/*.js"]
     }
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["build", "node_modules", "tests", "bin/test.ts"]
 }

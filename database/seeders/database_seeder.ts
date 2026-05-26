@@ -12,7 +12,7 @@ import { DateTime } from 'luxon'
 
 export default class extends BaseSeeder {
   async run() {
-    await new CatalogSeeder().run()
+    await new CatalogSeeder(this.client).run()
 
     // ============================================
     // 1. UTILISATEURS
