@@ -27,6 +27,8 @@ export default class EventsController {
       .whereIn('status', ['upcoming', 'ongoing'])
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
       .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
+      .orderBy('is_featured', 'desc')
+      .orderBy('featured_order', 'desc')
       .orderBy('event_date', 'asc')
 
     if (city) query.where('city', city)

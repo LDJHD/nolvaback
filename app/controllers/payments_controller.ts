@@ -488,7 +488,6 @@ export default class PaymentsController {
       Math.round(((provider.ratingAvg * provider.ratingCount + rating) / newCount) * 100) / 100
     provider.ratingCount = newCount
     provider.ratingAvg = newAvg
-    provider.ratingPoints = provider.ratingPoints + 10 + rating * 5
     await provider.save()
 
     return response.ok({

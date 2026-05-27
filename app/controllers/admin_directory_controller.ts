@@ -4,6 +4,7 @@ import Event from '#models/event'
 import ServiceProvider from '#models/service_provider'
 import QuoteRequest from '#models/quote_request'
 import QuoteFlowService from '#services/quote_flow_service'
+import NotificationService from '#services/notification_service'
 
 function likeTerm(raw: string) {
   const s = raw.replace(/[%_]/g, '').trim()
@@ -45,12 +46,16 @@ export default class AdminDirectoryController {
     const schema = vine.object({
       is_approved: vine.boolean().optional(),
       is_public: vine.boolean().optional(),
+      is_featured: vine.boolean().optional(),
+      featured_order: vine.number().min(0).optional(),
       status: vine.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
     })
     const data = await vine.validate({ schema, data: request.all() })
 
     if (data.is_approved !== undefined) event.isApproved = data.is_approved
     if (data.is_public !== undefined) event.isPublic = data.is_public
+    if (data.is_featured !== undefined) event.isFeatured = data.is_featured
+    if (data.featured_order !== undefined) event.featuredOrder = data.featured_order
     if (data.status !== undefined) event.status = data.status
     await event.save()
 
@@ -90,13 +95,27 @@ export default class AdminDirectoryController {
       status: vine.enum(['active', 'pending', 'inactive']).optional(),
       is_verified: vine.boolean().optional(),
       is_available: vine.boolean().optional(),
+      rating_points_delta: vine.number().min(1).optional(),
     })
     const data = await vine.validate({ schema, data: request.all() })
 
     if (data.status !== undefined) provider.status = data.status
     if (data.is_verified !== undefined) provider.isVerified = data.is_verified
     if (data.is_available !== undefined) provider.isAvailable = data.is_available
+    if (data.rating_points_delta !== undefined) {
+      provider.ratingPoints = Number(provider.ratingPoints || 0) + data.rating_points_delta
+    }
     await provider.save()
+
+    if (data.rating_points_delta !== undefined && data.rating_points_delta !== 0) {
+      await NotificationService.notifyUser(
+        provider.userId,
+        'admin_provider_points',
+        'Points ajustes par NOLVA',
+        `NOLVA a ajoute ${data.rating_points_delta} point(s) a votre profil prestataire.`,
+        { provider_id: provider.id, points: data.rating_points_delta }
+      )
+    }
 
     return response.ok({ message: 'Prestataire mis à jour', provider })
   }

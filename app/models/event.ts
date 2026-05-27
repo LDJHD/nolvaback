@@ -49,6 +49,12 @@ export default class Event extends BaseModel {
   declare isApproved: boolean
 
   @column()
+  declare isFeatured: boolean
+
+  @column()
+  declare featuredOrder: number
+
+  @column()
   declare status: string
 
   @column()

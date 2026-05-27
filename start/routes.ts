@@ -60,6 +60,7 @@ router.group(() => {
   router.post('/reservations', '#controllers/reservations_controller.store')
   router.get('/reservations', '#controllers/reservations_controller.myReservations')
   router.get('/reservations/:id', '#controllers/reservations_controller.show')
+  router.post('/reservations/:id/provider-points', '#controllers/reservations_controller.awardProviderPoints')
   router.get('/tickets', '#controllers/events_controller.myTickets')
   router.get('/events', '#controllers/events_controller.myEvents')
 }).prefix('/api/user').use(middleware.auth())

@@ -1,8 +1,15 @@
 import { defineConfig } from '@adonisjs/cors'
+import env from '#start/env'
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  env.get('FRONTEND_URL'),
+].filter(Boolean)
 
 const corsConfig = defineConfig({
   enabled: true,
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: allowedOrigins,
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   headers: true,
   exposeHeaders: [],

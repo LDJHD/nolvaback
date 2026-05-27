@@ -1,7 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
+import { DateTime } from 'luxon'
 import Reservation from '#models/reservation'
 import ServiceProvider from '#models/service_provider'
+import NotificationService from '#services/notification_service'
 
 export default class ReservationsController {
   // Créer une réservation
@@ -86,5 +88,52 @@ export default class ReservationsController {
       .firstOrFail()
 
     return response.ok(reservation)
+  }
+
+  async awardProviderPoints({ auth, params, request, response }: HttpContext) {
+    const user = auth.user!
+
+    const schema = vine.object({
+      points: vine.enum([0, 3, 5]),
+    })
+    const data = await vine.validate({ schema, data: request.all() })
+
+    const reservation = await Reservation.query()
+      .where('id', params.id)
+      .where('user_id', user.id)
+      .where('status', 'completed')
+      .where('payment_status', 'fully_paid')
+      .preload('provider', (q) => q.preload('user'))
+      .firstOrFail()
+
+    if (reservation.providerPointsAwardedAt) {
+      return response.badRequest({ message: 'Vous avez deja attribue des points pour cette prestation.' })
+    }
+
+    const points = Number(data.points)
+    reservation.providerPointsAwarded = points
+    reservation.providerPointsAwardedAt = DateTime.now()
+
+    const provider = reservation.provider
+    provider.ratingPoints = Number(provider.ratingPoints || 0) + points
+
+    await provider.save()
+    await reservation.save()
+
+    if (provider.userId) {
+      await NotificationService.notifyUser(
+        provider.userId,
+        'provider_points_awarded',
+        'Points recus',
+        `${user.firstName} ${user.lastName} vous a attribue ${points} point(s) apres une prestation terminee.`,
+        { reservation_id: reservation.id, provider_id: provider.id, points }
+      )
+    }
+
+    return response.ok({
+      message: 'Points attribues au prestataire',
+      reservation,
+      provider_points: provider.ratingPoints,
+    })
   }
 }

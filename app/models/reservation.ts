@@ -39,6 +39,12 @@ export default class Reservation extends BaseModel {
   @column.dateTime()
   declare serviceCompletedAt: DateTime | null
 
+  @column()
+  declare providerPointsAwarded: number | null
+
+  @column.dateTime()
+  declare providerPointsAwardedAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
