@@ -1,7 +1,14 @@
 import env from '#start/env'
 import { DateTime } from 'luxon'
 import Transaction from '#models/transaction'
-import { createAndSendFedaPayPayout, createFedaPayTransaction } from '#services/fedapay_service'
+import Ticket from '#models/ticket'
+import Event from '#models/event'
+import EventTicketType from '#models/event_ticket_type'
+import {
+  createAndSendFedaPayPayout,
+  createFedaPayTransaction,
+  retrieveFedaPayTransaction,
+} from '#services/fedapay_service'
 import {
   normalizePayoutPhone,
   payoutPhoneCountry,
@@ -127,6 +134,226 @@ export default class AdminPaymentService {
     )
 
     return { transaction, payoutAmount, fedapayPayoutId }
+  }
+
+  static async requestOrganizerRefundConfirmation(
+    adminId: number,
+    data: {
+      transaction_ref: string
+      note?: string
+    }
+  ) {
+    const transaction = await Transaction.query()
+      .where('reference', data.transaction_ref)
+      .where('type', 'ticket_purchase')
+      .where('status', 'disputed')
+      .preload('user')
+      .firstOrFail()
+
+    if (!transaction.eventId) {
+      throw new Error('Evenement introuvable pour cette transaction')
+    }
+
+    const event = await Event.query()
+      .where('id', transaction.eventId)
+      .preload('organizer')
+      .firstOrFail()
+
+    if (!event.organizerId) {
+      throw new Error('Organisateur introuvable pour cet evenement')
+    }
+
+    const clientName = [transaction.user?.firstName, transaction.user?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
+
+    await NotificationService.notifyUser(
+      event.organizerId,
+      'refund_confirmation_requested',
+      'Confirmation de paiement demandee',
+      `NOLVA examine une demande de remboursement pour ${event.title}. Merci de confirmer que ${clientName || 'ce client'} avait bien paye avant la decision finale.`,
+      {
+        transaction_ref: transaction.reference,
+        event_id: event.id,
+        client_id: transaction.userId,
+        amount: transaction.amount,
+        note: data.note,
+      }
+    )
+
+    await AdminLogService.log(adminId, 'refund_confirmation_requested', 'transaction', transaction.id, {
+      transactionId: transaction.id,
+      note: data.note,
+      metadata: { event_id: event.id, organizer_id: event.organizerId },
+    })
+
+    return { transaction, event }
+  }
+
+  static async executeClientRefund(
+    adminId: number,
+    data: {
+      transaction_ref: string
+      amount?: number
+      payout_method: string
+      payout_destination: string
+      note?: string
+    }
+  ) {
+    const transaction = await Transaction.query()
+      .where('reference', data.transaction_ref)
+      .where('status', 'disputed')
+      .preload('reservation')
+      .preload('user')
+      .firstOrFail()
+
+    const refundAmount = Math.round(data.amount ?? Number(transaction.amount))
+    if (refundAmount < 1) {
+      throw new Error('Montant de remboursement invalide')
+    }
+    if (refundAmount > Number(transaction.amount)) {
+      throw new Error(`Le remboursement ne peut pas depasser ${transaction.amount} FCFA`)
+    }
+
+    if (!transaction.fedapayTransactionId) {
+      throw new Error('Reference FedaPay introuvable pour verifier le paiement')
+    }
+
+    const isSandbox = env.get('FEDAPAY_ENVIRONMENT') === 'sandbox'
+    const isSandboxTransaction = String(transaction.fedapayTransactionId).startsWith('SANDBOX_')
+
+    if (!isSandboxTransaction) {
+      try {
+        const fedapayTxn = await retrieveFedaPayTransaction(transaction.fedapayTransactionId)
+        const status = fedapayTxn.status
+        const paidStatuses = ['approved', 'transferred', 'approved_partially_refunded']
+        if (!paidStatuses.includes(status)) {
+          throw new Error(`Paiement FedaPay non eligible au remboursement (${status})`)
+        }
+      } catch (err: unknown) {
+        if (!isSandbox) {
+          const msg = err instanceof Error ? err.message : 'Verification FedaPay impossible'
+          throw new Error(msg)
+        }
+      }
+    }
+
+    const needsPhone = payoutNeedsPhone(data.payout_method)
+    const destination = data.payout_destination.trim()
+    if (!destination) {
+      throw new Error('Coordonnees de remboursement requises')
+    }
+
+    const client = transaction.user
+    if (!client) {
+      throw new Error('Client introuvable')
+    }
+
+    const customerPayload: Record<string, unknown> = {
+      firstname: client.firstName || 'Client',
+      lastname: client.lastName || 'NOLVA',
+      email: client.email || `user${client.id}@nolva.bj`,
+    }
+
+    if (needsPhone) {
+      customerPayload.phone_number = {
+        number: normalizePayoutPhone(destination, data.payout_method),
+        country: payoutPhoneCountry(data.payout_method),
+      }
+    }
+
+    let fedapayPayoutId: string
+    try {
+      const payout = await createAndSendFedaPayPayout({
+        amount: refundAmount,
+        currency: { iso: 'XOF' },
+        mode: toFedaPayPayoutMode(data.payout_method),
+        description: `Remboursement NOLVA ${transaction.reference}`,
+        customer: customerPayload,
+      })
+      fedapayPayoutId = String(payout.id)
+    } catch (err: unknown) {
+      if (!isSandbox) {
+        const msg = err instanceof Error ? err.message : 'Erreur FedaPay remboursement'
+        throw new Error(msg)
+      }
+      fedapayPayoutId = `SANDBOX_REFUND_${Date.now()}`
+    }
+
+    transaction.status = 'refunded'
+    transaction.fedapayPayoutId = fedapayPayoutId
+    transaction.payoutMethod = data.payout_method
+    transaction.payoutDestination = destination
+    transaction.payoutStatus = 'sent'
+    transaction.payoutAt = DateTime.now()
+    transaction.adminNote = data.note || transaction.adminNote
+    await transaction.save()
+
+    if (transaction.reservationId) {
+      const reservation = transaction.reservation
+      if (reservation) {
+        reservation.status = 'cancelled'
+        reservation.paymentStatus = 'refunded'
+        await reservation.save()
+      }
+    }
+
+    if (transaction.type === 'ticket_purchase' && transaction.eventId) {
+      await Ticket.query()
+        .where('event_id', transaction.eventId)
+        .where('user_id', transaction.userId)
+        .where('fedapay_transaction_id', transaction.fedapayTransactionId)
+        .update({ status: 'cancelled' })
+
+      const event = await Event.find(transaction.eventId)
+      if (event) {
+        event.ticketsSold = Math.max(0, Number(event.ticketsSold || 0) - Number(transaction.quantity || 1))
+        await event.save()
+      }
+
+      if (transaction.eventTicketTypeId) {
+        const ticketType = await EventTicketType.find(transaction.eventTicketTypeId)
+        if (ticketType) {
+          ticketType.sold = Math.max(0, Number(ticketType.sold || 0) - Number(transaction.quantity || 1))
+          await ticketType.save()
+        }
+      }
+    }
+
+    await AdminLogService.log(adminId, 'client_refund_executed', 'transaction', transaction.id, {
+      transactionId: transaction.id,
+      note: data.note,
+      metadata: {
+        amount: refundAmount,
+        payout_method: data.payout_method,
+        payout_destination: destination,
+        fedapay_payout_id: fedapayPayoutId,
+      },
+    })
+
+    await NotificationService.notifyUser(
+      client.id,
+      'refund_sent',
+      'Remboursement envoye',
+      `NOLVA a valide et envoye votre remboursement de ${refundAmount.toLocaleString('fr-FR')} FCFA (ref. ${transaction.reference}).`,
+      { transaction_ref: transaction.reference, amount: refundAmount }
+    )
+
+    if (transaction.type === 'ticket_purchase' && transaction.eventId) {
+      const event = await Event.find(transaction.eventId)
+      if (event?.organizerId) {
+        await NotificationService.notifyUser(
+          event.organizerId,
+          'ticket_refunded',
+          'Billet rembourse',
+          `Un billet lie a ${event.title} a ete rembourse par NOLVA (ref. ${transaction.reference}).`,
+          { transaction_ref: transaction.reference, amount: refundAmount, event_id: event.id }
+        )
+      }
+    }
+
+    return { transaction, refundAmount, fedapayPayoutId }
   }
 
   static async initiateDisputeRepayment(

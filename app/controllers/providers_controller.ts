@@ -79,12 +79,27 @@ export default class ProvidersController {
   async myProfile({ auth, response }: HttpContext) {
     const user = auth.user!
 
-    const provider = await ServiceProvider.query()
+    let provider = await ServiceProvider.query()
       .where('user_id', user.id)
       .preload('offers')
       .preload('photos', (q) => q.orderBy('order', 'asc').orderBy('id', 'asc'))
       .preload('availabilities')
-      .firstOrFail()
+      .first()
+
+    if (!provider) {
+      provider = await ServiceProvider.create({
+        userId: user.id,
+        businessName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Prestataire NOLVA',
+        type: 'autre',
+        statusCompte: 'individuel',
+        city: user.city || null,
+        status: 'pending',
+        isAvailable: true,
+      })
+      await provider.load('offers')
+      await provider.load('photos', (q) => q.orderBy('order', 'asc').orderBy('id', 'asc'))
+      await provider.load('availabilities')
+    }
 
     return response.ok(provider)
   }
@@ -99,6 +114,7 @@ export default class ProvidersController {
 
     const schema = vine.object({
       business_name: vine.string().optional(),
+      company_position: vine.string().trim().optional(),
       type: vine.string().optional(),
       status_compte: vine.enum(['individuel', 'entreprise']).optional(),
       description: vine.string().optional(),
@@ -130,6 +146,7 @@ export default class ProvidersController {
 
     provider.merge({
       businessName: data.business_name ?? provider.businessName,
+      companyPosition: data.company_position ?? provider.companyPosition,
       type: data.type ?? provider.type,
       statusCompte: data.status_compte ?? provider.statusCompte,
       description: data.description ?? provider.description,

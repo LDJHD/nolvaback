@@ -63,7 +63,19 @@ router.group(() => {
   router.post('/reservations/:id/provider-points', '#controllers/reservations_controller.awardProviderPoints')
   router.get('/tickets', '#controllers/events_controller.myTickets')
   router.get('/events', '#controllers/events_controller.myEvents')
+  router.put('/events/:id', '#controllers/events_controller.organizerUpdate')
+  router.get('/events/:id/ticket-sales', '#controllers/events_controller.organizerTicketSales')
+  router.post('/events/:id/tickets/scan', '#controllers/events_controller.organizerScanTicket')
+  router.post('/events/:id/cancel', '#controllers/events_controller.organizerCancel')
+  router.post('/events/:id/reschedule', '#controllers/events_controller.organizerReschedule')
 }).prefix('/api/user').use(middleware.auth())
+
+// NOTIFICATIONS UTILISATEUR / PRESTATAIRE
+router.group(() => {
+  router.get('/', '#controllers/notifications_controller.index')
+  router.post('/read-all', '#controllers/notifications_controller.markAllRead')
+  router.post('/:id/read', '#controllers/notifications_controller.markRead')
+}).prefix('/api/notifications').use(middleware.auth())
 
 // PAIEMENTS
 router.group(() => {
@@ -97,6 +109,8 @@ router.group(() => {
   router.post('/transactions/freeze', '#controllers/payments_controller.freezeTransaction')
   router.post('/payouts/execute', '#controllers/payments_controller.adminExecutePayout')
   router.post('/disputes/repayment', '#controllers/payments_controller.adminDisputeRepayment')
+  router.post('/disputes/contact-organizer', '#controllers/payments_controller.adminContactRefundOrganizer')
+  router.post('/disputes/refund-client', '#controllers/payments_controller.adminExecuteClientRefund')
   router.get('/action-history', '#controllers/payments_controller.adminActionHistory')
   // Litiges
   router.post('/disputes/resolve', '#controllers/payments_controller.resolveDispute')
@@ -123,6 +137,7 @@ router.group(() => {
   router.put('/manage/events/:id', '#controllers/admin_directory_controller.updateEvent')
   router.get('/manage/providers', '#controllers/admin_directory_controller.listProviders')
   router.put('/manage/providers/:id', '#controllers/admin_directory_controller.updateProvider')
+  router.get('/manage/members-history', '#controllers/admin_directory_controller.listMembersHistory')
   router.get('/manage/quote-requests', '#controllers/admin_directory_controller.listQuoteRequests')
   router.put('/manage/quote-requests/:id', '#controllers/admin_directory_controller.updateQuoteRequest')
   router.get('/manage/quote-activities', '#controllers/quote_requests_controller.listActivities')

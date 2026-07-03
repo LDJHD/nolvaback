@@ -10,6 +10,9 @@ import EventType from '#models/event_type'
 import ProviderType from '#models/provider_type'
 import { parseEventDateInput } from '#utils/event_date'
 import QuoteFlowService, { PAYMENT_SECURITY_NB } from '#services/quote_flow_service'
+import MailService from '#services/mail_service'
+import NotificationService from '#services/notification_service'
+import env from '#start/env'
 
 export default class QuoteRequestsController {
   async store({ auth, request, response }: HttpContext) {
@@ -114,6 +117,62 @@ export default class QuoteRequestsController {
 
     if (providerId) {
       await quoteRequest.load('provider', (q) => q.preload('user'))
+      const providerUser = quoteRequest.provider?.user
+      if (providerUser) {
+        await NotificationService.notifyUser(
+          providerUser.id,
+          'quote_request_created',
+          'Nouvelle demande de devis',
+          `${user.firstName} ${user.lastName} vous a envoye une demande de devis.`,
+          { quote_request_id: quoteRequest.id, url: `/devis/${quoteRequest.id}` }
+        )
+        if (providerUser.email) {
+          const quoteUrl = `${env.get('FRONTEND_URL')}/devis/${quoteRequest.id}`
+          await MailService.send({
+            to: providerUser.email,
+            subject: 'Nouvelle demande de devis - NOLVA',
+            html: `
+              <p>Bonjour ${providerUser.firstName},</p>
+              <p>Vous avez recu une nouvelle demande de devis sur NOLVA.</p>
+              <p><strong>Evenement :</strong> ${data.event_type}</p>
+              <p><strong>Message client :</strong> ${data.message}</p>
+              <p><a href="${quoteUrl}">Consulter la demande</a></p>
+            `,
+            text: `Nouvelle demande de devis NOLVA. Consultez-la ici : ${quoteUrl}`,
+          })
+        }
+      }
+    } else if (providerType) {
+      const providers = await ServiceProvider.query()
+        .where('type', providerType)
+        .where('status', 'active')
+        .preload('user')
+      for (const provider of providers) {
+        const providerUser = provider.user
+        if (!providerUser) continue
+        await NotificationService.notifyUser(
+          providerUser.id,
+          'quote_request_created',
+          'Nouvelle demande de devis',
+          `${user.firstName} ${user.lastName} a envoye une demande de devis correspondant a votre activite.`,
+          { quote_request_id: quoteRequest.id, url: `/devis/${quoteRequest.id}` }
+        )
+        if (providerUser.email) {
+          const quoteUrl = `${env.get('FRONTEND_URL')}/devis/${quoteRequest.id}`
+          await MailService.send({
+            to: providerUser.email,
+            subject: 'Nouvelle demande de devis - NOLVA',
+            html: `
+              <p>Bonjour ${providerUser.firstName},</p>
+              <p>Une nouvelle demande de devis correspond a votre type de prestation sur NOLVA.</p>
+              <p><strong>Evenement :</strong> ${data.event_type}</p>
+              <p><strong>Message client :</strong> ${data.message}</p>
+              <p><a href="${quoteUrl}">Consulter la demande</a></p>
+            `,
+            text: `Nouvelle demande de devis NOLVA. Consultez-la ici : ${quoteUrl}`,
+          })
+        }
+      }
     }
 
     return response.created({
@@ -129,7 +188,10 @@ export default class QuoteRequestsController {
     let quote: QuoteRequest
     try {
       quote = await this.findQuoteForUser(params.id, user)
-    } catch {
+    } catch (error: any) {
+      if (error?.code === 'E_ROW_NOT_FOUND') {
+        return response.notFound({ message: 'Demande de devis introuvable.' })
+      }
       return response.forbidden({ message: 'Accès refusé à cette demande.' })
     }
 
@@ -147,7 +209,14 @@ export default class QuoteRequestsController {
 
   async messages({ auth, params, response }: HttpContext) {
     const user = auth.user!
-    await this.findQuoteForUser(params.id, user)
+    try {
+      await this.findQuoteForUser(params.id, user)
+    } catch (error: any) {
+      if (error?.code === 'E_ROW_NOT_FOUND') {
+        return response.notFound({ message: 'Demande de devis introuvable.' })
+      }
+      return response.forbidden({ message: 'Accès refusé à cette demande.' })
+    }
 
     const messages = await QuoteMessage.query()
       .where('quote_request_id', params.id)
@@ -159,7 +228,15 @@ export default class QuoteRequestsController {
 
   async postMessage({ auth, params, request, response }: HttpContext) {
     const user = auth.user!
-    const quote = await this.findQuoteForUser(params.id, user)
+    let quote: QuoteRequest
+    try {
+      quote = await this.findQuoteForUser(params.id, user)
+    } catch (error: any) {
+      if (error?.code === 'E_ROW_NOT_FOUND') {
+        return response.notFound({ message: 'Demande de devis introuvable.' })
+      }
+      return response.forbidden({ message: 'Accès refusé à cette demande.' })
+    }
 
     if (['declined', 'cancelled', 'completed'].includes(quote.status)) {
       return response.badRequest({ message: 'Cette demande est clôturée.' })
@@ -299,6 +376,30 @@ export default class QuoteRequestsController {
         provider,
         data.agreed_price
       )
+      await quote.load('user')
+      if (quote.user) {
+        await NotificationService.notifyUser(
+          quote.user.id,
+          'quote_request_accepted',
+          'Devis valide',
+          'Le prestataire a valide votre devis. Vous pouvez maintenant proceder au paiement.',
+          { quote_request_id: quote.id, reservation_id: reservation.id, url: `/devis/${quote.id}` }
+        )
+        if (quote.user.email) {
+          const quoteUrl = `${env.get('FRONTEND_URL')}/devis/${quote.id}`
+          await MailService.send({
+            to: quote.user.email,
+            subject: 'Votre devis a ete valide - NOLVA',
+            html: `
+              <p>Bonjour ${quote.user.firstName},</p>
+              <p>Le prestataire a valide votre devis sur NOLVA.</p>
+              <p>Vous pouvez maintenant proceder au paiement securise sur la plateforme.</p>
+              <p><a href="${quoteUrl}">Voir le devis</a></p>
+            `,
+            text: `Votre devis a ete valide. Voir le devis : ${quoteUrl}`,
+          })
+        }
+      }
       await quote.load('reservation')
       return response.ok({
         message: 'Devis validé. Le client peut payer sur la plateforme.',
@@ -352,11 +453,6 @@ export default class QuoteRequestsController {
         })
       })
       .firstOrFail()
-
-    if (!quote.providerId) {
-      quote.providerId = provider.id
-      await quote.save()
-    }
 
     return quote
   }

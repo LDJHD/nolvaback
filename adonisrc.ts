@@ -23,6 +23,13 @@ export default defineConfig({
 
   preloads: [() => import('#start/routes'), () => import('#start/kernel')],
 
+  metaFiles: [
+    {
+      pattern: 'public/nolva-logo.png',
+      reloadServer: false,
+    },
+  ],
+
   tests: {
     suites: [
       {

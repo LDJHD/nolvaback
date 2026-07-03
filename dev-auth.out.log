@@ -1,0 +1,310 @@
+
+> backend@0.0.0 dev
+> node ace serve --hmr
+
+c[ info ] starting HTTP server...
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.96 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[10:39:49.320] [32mINFO[39m (25184): [36mstarted HTTP server on localhost:3333[39m
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.03 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782471560358,"pid":23980,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.88 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782471565877,"pid":11576,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.32 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782471581963,"pid":13664,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+{"level":40,"time":1782473591253,"pid":13664,"hostname":"DESKTOP-742SP62","msg":"Connection Error: Error: read ECONNRESET"}
+{"level":40,"time":1782473641418,"pid":13664,"hostname":"DESKTOP-742SP62","msg":"Connection Error: Error: read ECONNRESET"}
+{"level":40,"time":1782473674952,"pid":13664,"hostname":"DESKTOP-742SP62","msg":"Connection Error: Error: read ECONNRESET"}
+{"level":40,"time":1782473674965,"pid":13664,"hostname":"DESKTOP-742SP62","msg":"Connection Error: Error: read ECONNRESET"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.07 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782476888988,"pid":940,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.62 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[12:28:22.572] [32mINFO[39m (15332): [36mstarted HTTP server on localhost:3333[39m
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.93 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782478565136,"pid":18308,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.28 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782478590825,"pid":16824,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.25 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782478606441,"pid":20440,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.75 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782478645909,"pid":16172,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.3 s                              │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[12:57:47.433] [32mINFO[39m (26340): [36mstarted HTTP server on localhost:3333[39m
+[12:59:04.876] [33mWARN[39m (26340): [36mConnection Error: Error: read ECONNRESET[39m
+[13:01:34.259] [33mWARN[39m (26340): [36mConnection Error: Error: read ECONNRESET[39m
+[13:01:34.260] [33mWARN[39m (26340): [36mConnection Error: Error: read ECONNRESET[39m
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.02 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[13:31:42.091] [32mINFO[39m (4580): [36mstarted HTTP server on localhost:3333[39m
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.5 s                              │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782480710753,"pid":23960,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.48 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782480757423,"pid":18148,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 4.04 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782480789571,"pid":7588,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.23 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782480824920,"pid":21684,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.29 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782480999795,"pid":2004,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.55 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782481004565,"pid":16784,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.33 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782481040178,"pid":2568,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.5 s                              │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782482435702,"pid":9732,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3 s                                │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782482466396,"pid":24012,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.57 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782482478191,"pid":4544,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.64 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782482506499,"pid":22048,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.92 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782483436687,"pid":1720,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 1.95 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782483450119,"pid":4544,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.19 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782483456002,"pid":1740,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.65 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782483468727,"pid":27304,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.97 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+{"level":30,"time":1782483478265,"pid":17060,"hostname":"DESKTOP-742SP62","msg":"started HTTP server on localhost:3333"}
+cfull-reload .env
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.21 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[14:18:26.510] [32mINFO[39m (18672): [36mstarted HTTP server on localhost:3333[39m
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 3.7 s                              │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[14:18:39.861] [32mINFO[39m (12300): [36mstarted HTTP server on localhost:3333[39m
+cfull-reload .env
+╭─────────────────────────────────────────────────╮
+│                                                 │
+│    Server address: http://localhost:3333        │
+│    Watch Mode: HMR                              │
+│    Ready in: 2.11 s                             │
+│                                                 │
+╰─────────────────────────────────────────────────╯
+[14:29:44.734] [32mINFO[39m (24388): [36mstarted HTTP server on localhost:3333[39m

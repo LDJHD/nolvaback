@@ -16,6 +16,9 @@ export default class Event extends BaseModel {
   declare title: string
 
   @column()
+  declare shareSlug: string | null
+
+  @column()
   declare description: string | null
 
   @column.dateTime()

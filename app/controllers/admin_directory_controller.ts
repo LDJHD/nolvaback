@@ -3,8 +3,10 @@ import vine from '@vinejs/vine'
 import Event from '#models/event'
 import ServiceProvider from '#models/service_provider'
 import QuoteRequest from '#models/quote_request'
+import User from '#models/user'
 import QuoteFlowService from '#services/quote_flow_service'
 import NotificationService from '#services/notification_service'
+import { DateTime } from 'luxon'
 
 function likeTerm(raw: string) {
   const s = raw.replace(/[%_]/g, '').trim()
@@ -12,6 +14,62 @@ function likeTerm(raw: string) {
 }
 
 export default class AdminDirectoryController {
+  async listMembersHistory({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = Math.min(Number(request.input('limit', 20)) || 20, 100)
+    const defaultStart = '2026-01-01'
+    const defaultEnd = DateTime.now().toISODate()
+    const rawStart = String(request.input('start_date', defaultStart)).trim() || defaultStart
+    const rawEnd = String(request.input('end_date', defaultEnd)).trim() || defaultEnd
+
+    const startDate = DateTime.fromISO(rawStart, { zone: 'local' })
+    const endDate = DateTime.fromISO(rawEnd, { zone: 'local' })
+
+    if (!startDate.isValid || !endDate.isValid) {
+      return response.badRequest({ message: 'Dates invalides. Format attendu : YYYY-MM-DD.' })
+    }
+
+    const start = startDate.startOf('day')
+    const end = endDate.endOf('day')
+
+    if (start > end) {
+      return response.badRequest({
+        message: 'La date de debut doit etre anterieure ou egale a la date de fin.',
+      })
+    }
+
+    const members = await User.query()
+      .select([
+        'id',
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'role',
+        'city',
+        'is_active',
+        'created_at',
+      ])
+      .whereIn('role', ['user', 'provider'])
+      .whereBetween('created_at', [start.toSQL()!, end.toSQL()!])
+      .orderBy('created_at', 'desc')
+      .paginate(page, limit)
+
+    const totalRow = await User.query()
+      .whereIn('role', ['user', 'provider'])
+      .whereBetween('created_at', [start.toSQL()!, end.toSQL()!])
+      .count('* as total')
+      .first()
+
+    return response.ok({
+      filters: {
+        start_date: start.toISODate(),
+        end_date: end.toISODate(),
+      },
+      total: Number(totalRow?.$extras.total || 0),
+      data: members,
+    })
+  }
   /** Tous les événements (recherche, type, statut, validation) */
   async listEvents({ request, response }: HttpContext) {
     const page = request.input('page', 1)

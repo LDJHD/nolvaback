@@ -22,6 +22,12 @@ export default class Availability extends BaseModel {
   })
   declare slots: string[] | null
 
+  @column({
+    prepare: (value: any) => JSON.stringify(value),
+    consume: (value: string) => (typeof value === 'string' ? JSON.parse(value) : value),
+  })
+  declare weeklySchedule: Record<string, unknown>[] | null
+
   @column()
   declare urgentAvailable: boolean
 

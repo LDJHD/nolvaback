@@ -1,5 +1,4 @@
 import Transaction from '#models/transaction'
-import Reservation from '#models/reservation'
 import Event from '#models/event'
 import { DateTime } from 'luxon'
 
@@ -14,6 +13,7 @@ export default class EscrowReleaseService {
 
     const due = await Transaction.query()
       .where('status', 'paid')
+      .where('type', 'ticket_purchase')
       .whereNotNull('auto_release_at')
       .where('auto_release_at', '<=', now.toSQL()!)
 
@@ -24,14 +24,7 @@ export default class EscrowReleaseService {
         transaction.adminNote || 'Libération automatique (délai PDF écoulé)'
       await transaction.save()
 
-      if (transaction.type === 'provider_payment' && transaction.reservationId) {
-        const reservation = await Reservation.find(transaction.reservationId)
-        if (reservation && reservation.status === 'confirmed') {
-          reservation.status = 'completed'
-          await reservation.save()
-        }
-        providers++
-      } else if (transaction.type === 'ticket_purchase') {
+      if (transaction.type === 'ticket_purchase') {
         tickets++
       }
     }

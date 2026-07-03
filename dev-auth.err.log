@@ -1,0 +1,227 @@
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "NODE_ENV"
+- Missing environment variable "DB_HOST"
+- Missing environment variable "DB_PORT"
+- Missing environment variable "DB_USER"
+- Missing environment variable "DB_DATABASE"
+- Missing environment variable "FRONTEND_URL"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "FRONTEND_URL"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "NODE_ENV"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "FRONTEND_URL"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "FEDAPAY_SECRET_KEY"
+- Missing environment variable "FEDAPAY_PUBLIC_KEY"
+- Missing environment variable "FEDAPAY_ENVIRONMENT"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "FEDAPAY_SECRET_KEY"
+- Missing environment variable "FEDAPAY_PUBLIC_KEY"
+- Missing environment variable "FEDAPAY_ENVIRONMENT"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+
+
+   EnvValidationException:
+Validation
+failed
+for
+one
+or
+more
+environment
+variables
+ 
+   - Missing environment variable "NODE_ENV"
+- Missing environment variable "DB_HOST"
+- Missing environment variable "DB_PORT"
+- Missing environment variable "DB_USER"
+- Missing environment variable "DB_DATABASE"
+- Missing environment variable "FEDAPAY_SECRET_KEY"
+- Missing environment variable "FEDAPAY_PUBLIC_KEY"
+- Missing environment variable "FEDAPAY_ENVIRONMENT"
+- Missing environment variable "FRONTEND_URL"
+ 
+   at async <anonymous> start\env.ts:3
+   1|  import { Env } from '@adonisjs/core/env'
+   2|  
+ > 3|  export default await Env.create(new URL('../', import.meta.url), {
+   4|    NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
+   5|    PORT: Env.schema.number(),
+   6|    APP_KEY: Env.schema.string(),
+   7|    HOST: Env.schema.string({ format: 'host' }),
+   8|    LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+
+   ⁃ new EnvValidator
+     node_modules\@adonisjs\env\src\validator.ts:27
+   ⁃ Function.rules
+     node_modules\@adonisjs\env\src\env.ts:110
+   ⁃ Function.create
+     node_modules\@adonisjs\env\src\env.ts:55
+

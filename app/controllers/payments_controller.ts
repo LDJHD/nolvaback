@@ -17,6 +17,53 @@ import AdminPaymentService from '#services/admin_payment_service'
 import AdminLogService from '#services/admin_log_service'
 import AdminActionLog from '#models/admin_action_log'
 import NotificationService from '#services/notification_service'
+import PaymentConfirmationService from '#services/payment_confirmation_service'
+
+function fedapayCustomer(user: any) {
+  const customer: Record<string, unknown> = {
+    firstname: user.firstName || 'Client',
+    lastname: user.lastName || 'NOLVA',
+    email: user.email || `client${user.id}@nolva.org`,
+  }
+
+  const phone = String(user.phone || '').replace(/\D/g, '')
+  if (phone.length >= 8) {
+    customer.phone_number = {
+      number: phone,
+      country: 'BJ',
+    }
+  }
+
+  return customer
+}
+
+function fedapayErrorMessage(err: any) {
+  const data = err?.httpResponse?.data || err?.response?.data
+  const message =
+    err?.errorMessage ||
+    data?.message ||
+    data?.errors ||
+    err?.message ||
+    'Erreur FedaPay inconnue'
+
+  const formattedMessage = typeof message === 'string' ? message : JSON.stringify(message)
+
+  if (data?.errors && data.errors !== message) {
+    const formattedErrors = typeof data.errors === 'string' ? data.errors : JSON.stringify(data.errors)
+    return `${formattedMessage} - ${formattedErrors}`
+  }
+
+  return formattedMessage
+}
+
+function fedapayErrorDebug(err: any) {
+  const data = err?.httpResponse?.data || err?.response?.data
+  return {
+    status: err?.httpStatus || err?.httpResponse?.status || err?.response?.status || null,
+    message: fedapayErrorMessage(err),
+    errors: data?.errors || null,
+  }
+}
 
 export default class PaymentsController {
   // ═══════════════════════════════════════════════════════════
@@ -128,12 +175,7 @@ export default class PaymentsController {
         amount: amount,
         currency: { iso: 'XOF' },
         callback_url: `${env.get('FRONTEND_URL')}/paiement/confirmation?type=ticket&ref=${txnRef}`,
-        customer: {
-          firstname: user.firstName,
-          lastname: user.lastName,
-          email: user.email || `user${user.id}@nolva.bj`,
-          phone_number: { number: user.phone || '', country: 'BJ' },
-        },
+        customer: fedapayCustomer(user),
       })
 
       // Générer le lien de paiement
@@ -155,7 +197,7 @@ export default class PaymentsController {
       })
     } catch (err: any) {
       // Fallback sandbox si FedaPay échoue
-      console.error('[FedaPay] Erreur création transaction:', err.message)
+      console.error('[FedaPay] Erreur création transaction:', fedapayErrorDebug(err))
       return this.fallbackSandboxTicket(transaction, event, ticketTypeLabel, quantity, user, response)
     }
   }
@@ -180,6 +222,40 @@ export default class PaymentsController {
       .firstOrFail()
 
     if (transaction.status !== 'pending') {
+      if (transaction.status === 'paid') {
+        const tickets = await Ticket.query()
+          .where('user_id', user.id)
+          .where('fedapay_transaction_id', transaction.fedapayTransactionId || '')
+
+        return response.ok({
+          message: `${tickets.length || transaction.quantity || 1} billet(s) achete(s) avec succes ! Paiement securise via NOLVA.`,
+          tickets: tickets.map((t) => ({
+            id: t.id,
+            ticketCode: `NOLVA-TICKET-${String(t.id).padStart(6, '0')}`,
+            type: t.type,
+            amount: t.amount,
+            qrCode: t.qrCode,
+            status: t.status,
+          })),
+          ticket: tickets[0]
+            ? {
+                id: tickets[0].id,
+                ticketCode: `NOLVA-TICKET-${String(tickets[0].id).padStart(6, '0')}`,
+                type: tickets[0].type,
+                amount: tickets[0].amount,
+                qrCode: tickets[0].qrCode,
+                status: tickets[0].status,
+              }
+            : null,
+          transaction: {
+            reference: transaction.reference,
+            amount: transaction.amount,
+            commissionNolva: transaction.commissionAmount,
+            status: transaction.status,
+            autoReleaseAt: transaction.autoReleaseAt,
+          },
+        })
+      }
       return response.badRequest({ message: 'Cette transaction a déjà été traitée' })
     }
 
@@ -253,10 +329,13 @@ export default class PaymentsController {
     transaction.autoReleaseAt = EscrowReleaseService.ticketAutoReleaseAt(event)
     await transaction.save()
 
+    await PaymentConfirmationService.notifyTicketPayment({ user, event, transaction, tickets })
+
     return response.ok({
       message: `${quantity} billet(s) acheté(s) avec succès ! Paiement sécurisé via NOLVA.`,
       tickets: tickets.map((t) => ({
         id: t.id,
+        ticketCode: `NOLVA-TICKET-${String(t.id).padStart(6, '0')}`,
         type: t.type,
         amount: t.amount,
         qrCode: t.qrCode,
@@ -324,12 +403,7 @@ export default class PaymentsController {
         amount: amount,
         currency: { iso: 'XOF' },
         callback_url: `${env.get('FRONTEND_URL')}/paiement/confirmation?type=reservation&ref=${txnRef}`,
-        customer: {
-          firstname: user.firstName,
-          lastname: user.lastName,
-          email: user.email || `user${user.id}@nolva.bj`,
-          phone_number: { number: user.phone || '', country: 'BJ' },
-        },
+        customer: fedapayCustomer(user),
       })
 
       const paymentToken = await fedapayTxn.generateToken()
@@ -349,7 +423,19 @@ export default class PaymentsController {
         mention: 'Paiement sécurisé via NOLVA',
       })
     } catch (err: any) {
-      console.error('[FedaPay] Erreur:', err.message)
+      const fedapayMessage = fedapayErrorMessage(err)
+      console.error('[FedaPay] Erreur:', fedapayErrorDebug(err))
+      if (env.get('FEDAPAY_ENVIRONMENT') !== 'sandbox') {
+        transaction.status = 'cancelled'
+        transaction.fedapayStatus = 'failed'
+        transaction.adminNote = 'Echec initialisation paiement FedaPay live'
+        await transaction.save()
+
+        return response.badRequest({
+          message: `Impossible d'initier le paiement FedaPay: ${fedapayMessage}`,
+        })
+      }
+
       return this.fallbackSandboxReservation(transaction, reservation, response)
     }
   }
@@ -374,6 +460,20 @@ export default class PaymentsController {
       .firstOrFail()
 
     if (transaction.status !== 'pending') {
+      if (transaction.status === 'paid') {
+        return response.ok({
+          message: 'Paiement confirme ! Les fonds sont securises par NOLVA.',
+          transaction: {
+            reference: transaction.reference,
+            amount: transaction.amount,
+            commissionNolva: transaction.commissionAmount,
+            netPrestataire: transaction.netAmount,
+            proofCode: transaction.proofCode,
+            proofQrCode: transaction.proofQrCode,
+            status: 'Fonds en sequestre - en attente de validation du service',
+          },
+        })
+      }
       return response.badRequest({ message: 'Transaction déjà traitée' })
     }
 
@@ -399,7 +499,7 @@ export default class PaymentsController {
     transaction.status = 'paid'
     transaction.fedapayStatus = 'approved'
     transaction.paidAt = DateTime.now()
-    transaction.autoReleaseAt = EscrowReleaseService.providerAutoReleaseAt()
+    transaction.autoReleaseAt = null
     await transaction.save()
 
     if (transaction.reservationId) {
@@ -432,6 +532,13 @@ export default class PaymentsController {
       }
     }
 
+    if (transaction.reservationId) {
+      const reservation = await Reservation.find(transaction.reservationId)
+      if (reservation) {
+        await PaymentConfirmationService.notifyProviderPayment({ user, reservation, transaction })
+      }
+    }
+
     return response.ok({
       message: 'Paiement confirmé ! Les fonds sont sécurisés par NOLVA.',
       transaction: {
@@ -439,6 +546,8 @@ export default class PaymentsController {
         amount: transaction.amount,
         commissionNolva: transaction.commissionAmount,
         netPrestataire: transaction.netAmount,
+        proofCode: transaction.proofCode,
+        proofQrCode: transaction.proofQrCode,
         status: 'Fonds en séquestre - en attente de validation du service',
       },
     })
@@ -471,9 +580,9 @@ export default class PaymentsController {
       .where('status', 'paid')
       .firstOrFail()
 
-    transaction.status = 'released'
-    transaction.releasedAt = DateTime.now()
     transaction.autoReleaseAt = null
+    transaction.adminNote =
+      transaction.adminNote || 'Service validé par le client - reversement FedaPay à traiter par l’admin'
     await transaction.save()
 
     reservation.status = 'completed'
@@ -491,7 +600,7 @@ export default class PaymentsController {
     await provider.save()
 
     return response.ok({
-      message: 'Service validé ! Le prestataire sera payé automatiquement.',
+      message: 'Service validé ! Le reversement FedaPay est maintenant à traiter par l’admin.',
       netPrestataire: transaction.netAmount,
       commissionNolva: transaction.commissionAmount,
     })
@@ -508,7 +617,13 @@ export default class PaymentsController {
     const user = auth.user!
     const transaction = await Transaction.query()
       .where('reservation_id', params.id)
-      .where('user_id', user.id)
+      .where((q) => {
+        q.where('user_id', user.id).orWhereHas('reservation', (rq) => {
+          rq.whereHas('provider', (pq) => {
+            pq.where('user_id', user.id)
+          })
+        })
+      })
       .orderBy('id', 'desc')
       .first()
 
@@ -520,6 +635,8 @@ export default class PaymentsController {
       reference: transaction.reference,
       status: transaction.status,
       amount: transaction.amount,
+      proofCode: transaction.proofCode,
+      proofQrCode: transaction.proofQrCode,
     })
   }
 
@@ -811,6 +928,55 @@ export default class PaymentsController {
     }
   }
 
+  async adminContactRefundOrganizer({ auth, request, response }: HttpContext) {
+    const admin = auth.user!
+
+    const schema = vine.object({
+      transaction_ref: vine.string(),
+      note: vine.string().trim().optional(),
+    })
+
+    const data = await vine.validate({ schema, data: request.all() })
+
+    try {
+      const result = await AdminPaymentService.requestOrganizerRefundConfirmation(admin.id, data)
+      return response.ok({
+        message: 'Organisateur notifie pour confirmation du paiement',
+        transaction: result.transaction,
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur notification organisateur'
+      return response.badRequest({ message })
+    }
+  }
+
+  async adminExecuteClientRefund({ auth, request, response }: HttpContext) {
+    const admin = auth.user!
+
+    const schema = vine.object({
+      transaction_ref: vine.string(),
+      amount: vine.number().min(1).optional(),
+      payout_method: vine.string().trim(),
+      payout_destination: vine.string().trim(),
+      note: vine.string().trim().optional(),
+    })
+
+    const data = await vine.validate({ schema, data: request.all() })
+
+    try {
+      const result = await AdminPaymentService.executeClientRefund(admin.id, data)
+      return response.ok({
+        message: 'Remboursement FedaPay envoye au client',
+        transaction: result.transaction,
+        refundAmount: result.refundAmount,
+        fedapayPayoutId: result.fedapayPayoutId,
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur remboursement'
+      return response.badRequest({ message })
+    }
+  }
+
   async adminActionHistory({ request, response }: HttpContext) {
     const page = request.input('page', 1)
     const transactionId = request.input('transaction_id')
@@ -917,10 +1083,88 @@ export default class PaymentsController {
         .first()
 
       if (transaction && payload.entity.status === 'approved' && transaction.status === 'pending') {
-        transaction.status = 'paid'
-        transaction.fedapayStatus = 'approved'
-        transaction.paidAt = DateTime.now()
-        await transaction.save()
+        const user = await transaction.related('user').query().first()
+
+        if (transaction.type === 'ticket_purchase' && transaction.eventId && user) {
+          const event = await Event.find(transaction.eventId)
+          if (event) {
+            const quantity = transaction.quantity || 1
+            const existingCount = await Ticket.query()
+              .where('user_id', transaction.userId)
+              .where('event_id', event.id)
+              .where('fedapay_transaction_id', transaction.fedapayTransactionId || '')
+              .count('* as total')
+
+            if (Number(existingCount[0].$extras.total) === 0) {
+              const tickets = []
+              const unitAmount = Math.round(Number(transaction.amount) / quantity)
+
+              for (let i = 0; i < quantity; i++) {
+                const ticket = await Ticket.create({
+                  eventId: event.id,
+                  userId: transaction.userId,
+                  type: transaction.ticketType || 'standard',
+                  amount: unitAmount,
+                  qrCode: `NOLVA-${crypto.randomBytes(12).toString('hex').toUpperCase()}`,
+                  status: 'valid',
+                  fedapayTransactionId: transaction.fedapayTransactionId,
+                })
+                tickets.push(ticket)
+              }
+
+              event.ticketsSold += quantity
+              await event.save()
+
+              if (transaction.eventTicketTypeId) {
+                const ett = await EventTicketType.find(transaction.eventTicketTypeId)
+                if (ett) {
+                  ett.sold += quantity
+                  await ett.save()
+                }
+              }
+
+              transaction.ticketId = tickets[0].id
+              transaction.status = 'paid'
+              transaction.fedapayStatus = 'approved'
+              transaction.paidAt = DateTime.now()
+              transaction.autoReleaseAt = EscrowReleaseService.ticketAutoReleaseAt(event)
+              await transaction.save()
+
+              await PaymentConfirmationService.notifyTicketPayment({ user, event, transaction, tickets })
+            }
+          }
+        } else if (transaction.type === 'provider_payment' && user) {
+          transaction.status = 'paid'
+          transaction.fedapayStatus = 'approved'
+          transaction.paidAt = DateTime.now()
+          transaction.autoReleaseAt = null
+          await transaction.save()
+
+          if (transaction.reservationId) {
+            const reservation = await Reservation.find(transaction.reservationId)
+            if (reservation) {
+              reservation.paymentStatus = 'fully_paid'
+              reservation.status = 'confirmed'
+              reservation.fedapayTransactionId = transaction.fedapayTransactionId
+              await reservation.save()
+
+              if (reservation.quoteRequestId) {
+                const quote = await QuoteRequest.find(reservation.quoteRequestId)
+                if (quote) {
+                  quote.status = 'paid'
+                  await quote.save()
+                  await QuoteFlowService.logActivity(quote.id, 'payment_confirmed', user.id, 'client', {
+                    reservation_id: reservation.id,
+                    transaction_ref: transaction.reference,
+                    amount: transaction.amount,
+                  })
+                }
+              }
+
+              await PaymentConfirmationService.notifyProviderPayment({ user, reservation, transaction })
+            }
+          }
+        }
       }
     }
 
@@ -969,7 +1213,13 @@ export default class PaymentsController {
 
     return response.created({
       message: `${quantity} billet(s) gratuit(s) obtenu(s) !`,
-      tickets: tickets.map((t) => ({ id: t.id, type: t.type, qrCode: t.qrCode, status: t.status })),
+      tickets: tickets.map((t) => ({
+        id: t.id,
+        ticketCode: `NOLVA-TICKET-${String(t.id).padStart(6, '0')}`,
+        type: t.type,
+        qrCode: t.qrCode,
+        status: t.status,
+      })),
     })
   }
 

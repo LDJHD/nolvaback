@@ -22,6 +22,9 @@ export default class ServiceProvider extends BaseModel {
   declare businessName: string | null
 
   @column()
+  declare companyPosition: string | null
+
+  @column()
   declare type: string
 
   @column()

@@ -59,6 +59,7 @@ const PROVIDER_TYPES: { slug: string; label: string; sort: number }[] = [
   { slug: 'traiteur', label: 'Traiteur / Restauration', sort: 10 },
   { slug: 'decorateur', label: 'Décorateur / Fleuriste', sort: 11 },
   { slug: 'videaste', label: 'Vidéaste', sort: 12 },
+  { slug: 'shooter', label: 'ESPACE/Salle des fêtes', sort: 13 },
   { slug: 'autre', label: 'Autre prestataire', sort: 99 },
 ]
 

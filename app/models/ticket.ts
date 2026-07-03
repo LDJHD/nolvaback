@@ -29,6 +29,9 @@ export default class Ticket extends BaseModel {
   @column()
   declare fedapayTransactionId: string | null
 
+  @column.dateTime()
+  declare scannedAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

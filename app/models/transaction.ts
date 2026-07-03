@@ -66,6 +66,12 @@ export default class Transaction extends BaseModel {
   @column()
   declare fedapayStatus: string | null
 
+  @column()
+  declare proofCode: string | null
+
+  @column()
+  declare proofQrCode: string | null
+
   @column.dateTime()
   declare paidAt: DateTime | null
 

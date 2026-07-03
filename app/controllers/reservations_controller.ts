@@ -3,6 +3,7 @@ import vine from '@vinejs/vine'
 import { DateTime } from 'luxon'
 import Reservation from '#models/reservation'
 import ServiceProvider from '#models/service_provider'
+import Transaction from '#models/transaction'
 import NotificationService from '#services/notification_service'
 
 export default class ReservationsController {
@@ -55,7 +56,29 @@ export default class ReservationsController {
       .orderBy('created_at', 'desc')
       .paginate(page, 10)
 
-    return response.ok(reservations)
+    const rows = reservations.all()
+    const transactions = rows.length
+      ? await Transaction.query()
+          .whereIn(
+            'reservation_id',
+            rows.map((reservation) => reservation.id)
+          )
+          .orderBy('id', 'desc')
+      : []
+    const transactionByReservation = new Map<number, Transaction>()
+    for (const transaction of transactions) {
+      if (transaction.reservationId && !transactionByReservation.has(transaction.reservationId)) {
+        transactionByReservation.set(transaction.reservationId, transaction)
+      }
+    }
+
+    return response.ok({
+      ...reservations.serialize(),
+      data: rows.map((reservation) => ({
+        ...reservation.serialize(),
+        payment_transaction: transactionByReservation.get(reservation.id)?.serialize() || null,
+      })),
+    })
   }
 
   // Réservations reçues (prestataire)
@@ -70,7 +93,29 @@ export default class ReservationsController {
       .orderBy('created_at', 'desc')
       .paginate(page, 10)
 
-    return response.ok(reservations)
+    const rows = reservations.all()
+    const transactions = rows.length
+      ? await Transaction.query()
+          .whereIn(
+            'reservation_id',
+            rows.map((reservation) => reservation.id)
+          )
+          .orderBy('id', 'desc')
+      : []
+    const transactionByReservation = new Map<number, Transaction>()
+    for (const transaction of transactions) {
+      if (transaction.reservationId && !transactionByReservation.has(transaction.reservationId)) {
+        transactionByReservation.set(transaction.reservationId, transaction)
+      }
+    }
+
+    return response.ok({
+      ...reservations.serialize(),
+      data: rows.map((reservation) => ({
+        ...reservation.serialize(),
+        payment_transaction: transactionByReservation.get(reservation.id)?.serialize() || null,
+      })),
+    })
   }
 
   async show({ auth, params, response }: HttpContext) {
