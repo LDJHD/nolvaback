@@ -20,6 +20,8 @@ export default class ProvidersController {
       .preload('user', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
       .preload('offers', (q) => q.where('is_active', true))
       .preload('photos', (q) => q.orderBy('order', 'asc').limit(1))
+      .orderBy('rating_points', 'desc')
+      .orderBy('created_at', 'desc')
 
     if (type) query.where('type', type)
     if (city) query.where('city', city)
@@ -65,7 +67,7 @@ export default class ProvidersController {
       .where('status', 'active')
       .where('is_available', true)
       .preload('user', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
-      .preload('offers', (q) => q.where('is_active', true).limit(1))
+      .preload('offers', (q) => q.where('is_active', true))
       .preload('photos', (q) => q.orderBy('order', 'asc').limit(1))
       .limit(6)
       .orderBy('rating_points', 'desc')
