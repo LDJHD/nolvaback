@@ -81,6 +81,7 @@ export default class AdminDirectoryController {
 
     const query = Event.query()
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'email', 'phone']))
+      .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
       .orderBy('created_at', 'desc')
 
     if (search) {

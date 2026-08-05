@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import { DateTime } from 'luxon'
 import Event from '#models/event'
+import EventRegistration from '#models/event_registration'
 import EventType from '#models/event_type'
 import EventTicketType from '#models/event_ticket_type'
 import ProviderType from '#models/provider_type'
@@ -31,6 +32,10 @@ function fullName(user: { firstName?: string | null; lastName?: string | null } 
   return [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || 'Organisateur'
 }
 
+function normalizePhone(raw: string): string {
+  return String(raw || '').replace(/[\s.\-()]/g, '')
+}
+
 export default class EventsController {
   async index({ request, response }: HttpContext) {
     const page = request.input('page', 1)
@@ -43,6 +48,7 @@ export default class EventsController {
       .where('is_public', true)
       .where('is_approved', true)
       .whereIn('status', ['upcoming', 'ongoing'])
+      .where('event_date', '>=', DateTime.now().startOf('day').toSQL())
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
       .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
       .orderBy('is_featured', 'desc')
@@ -479,6 +485,99 @@ Cliquer pour aller voir : ${eventUrl}`,
     return response.ok({
       message: 'Événement refusé — l’organisateur a été notifié',
       event,
+    })
+  }
+
+  /**
+   * Inscription à un événement GRATUIT (sans compte requis)
+   * Le visiteur renseigne nom, prénom et numéro de téléphone.
+   */
+  async registerFree({ auth, params, request, response }: HttpContext) {
+    const schema = vine.object({
+      first_name: vine.string().trim().minLength(1).maxLength(100),
+      last_name: vine.string().trim().minLength(1).maxLength(100),
+      phone: vine.string().trim().minLength(6).maxLength(30),
+    })
+    const data = await vine.validate({ schema, data: request.all() })
+    const phone = normalizePhone(data.phone)
+
+    const event = await Event.query()
+      .where((q) => q.where('id', params.id).orWhere('share_slug', params.id))
+      .where('is_public', true)
+      .where('is_approved', true)
+      .whereIn('status', ['upcoming', 'ongoing'])
+      .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
+      .first()
+
+    if (!event) {
+      return response.notFound({ message: 'Événement introuvable ou non publié' })
+    }
+
+    const ticketTypes = event.ticketTypes
+    const isFree =
+      ticketTypes.length > 0
+        ? ticketTypes.every((t) => Number(t.price) <= 0)
+        : Number(event.ticketPrice) <= 0
+
+    if (!isFree) {
+      return response.badRequest({
+        message: "Cet événement n'est pas gratuit : utilisez l'achat de billets.",
+      })
+    }
+
+    const existing = await EventRegistration.query()
+      .where('event_id', event.id)
+      .where('phone', phone)
+      .first()
+    if (existing) {
+      return response.badRequest({
+        message: 'Ce numéro est déjà inscrit à cet événement.',
+      })
+    }
+
+    let userId: number | null = null
+    try {
+      userId = auth.user ? auth.user.id : null
+    } catch {
+      userId = null
+    }
+
+    const registration = await EventRegistration.create({
+      eventId: event.id,
+      userId,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      phone,
+    })
+
+    return response.created({
+      message: `Inscription confirmée ! ${data.first_name}, vous êtes inscrit(e) à « ${event.title} ».`,
+      registration: registration.serialize(),
+    })
+  }
+
+  /**
+   * Organisateur : liste des personnes inscrites à un événement gratuit
+   */
+  async organizerEventRegistrations({ auth, params, response }: HttpContext) {
+    const user = auth.user!
+    const event = await Event.query()
+      .where('id', params.id)
+      .where('organizer_id', user.id)
+      .first()
+
+    if (!event) {
+      return response.notFound({ message: 'Événement introuvable pour cet organisateur' })
+    }
+
+    const registrations = await EventRegistration.query()
+      .where('event_id', event.id)
+      .orderBy('created_at', 'desc')
+
+    return response.ok({
+      event: { id: event.id, title: event.title },
+      count: registrations.length,
+      registrations: registrations.map((r) => r.serialize()),
     })
   }
 

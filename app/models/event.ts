@@ -4,6 +4,7 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
 import Ticket from '#models/ticket'
 import EventTicketType from '#models/event_ticket_type'
+import EventRegistration from '#models/event_registration'
 
 export default class Event extends BaseModel {
   @column({ isPrimary: true })
@@ -80,4 +81,7 @@ export default class Event extends BaseModel {
 
   @hasMany(() => EventTicketType)
   declare ticketTypes: HasMany<typeof EventTicketType>
+
+  @hasMany(() => EventRegistration)
+  declare registrations: HasMany<typeof EventRegistration>
 }

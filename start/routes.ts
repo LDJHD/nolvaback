@@ -68,6 +68,7 @@ router.group(() => {
   router.post('/events/:id/tickets/scan', '#controllers/events_controller.organizerScanTicket')
   router.post('/events/:id/cancel', '#controllers/events_controller.organizerCancel')
   router.post('/events/:id/reschedule', '#controllers/events_controller.organizerReschedule')
+  router.get('/events/:id/registrations', '#controllers/events_controller.organizerEventRegistrations')
 }).prefix('/api/user').use(middleware.auth())
 
 // NOTIFICATIONS UTILISATEUR / PRESTATAIRE
@@ -148,5 +149,6 @@ router.group(() => {
   router.get('/publish-suggestions', '#controllers/events_controller.publishSuggestions')
   router.get('/', '#controllers/events_controller.index')
   router.get('/:id', '#controllers/events_controller.show')
+  router.post('/:id/register', '#controllers/events_controller.registerFree')
   router.post('/', '#controllers/events_controller.store').use(middleware.auth())
 }).prefix('/api/events')
