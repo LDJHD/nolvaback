@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo, hasMany, computed } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
 import Ticket from '#models/ticket'
@@ -45,6 +45,16 @@ export default class Event extends BaseModel {
 
   @column()
   declare ticketsSold: number
+
+  /** Nombre de participants attendus (utile pour les événements GRATUITS sans billets) */
+  @column()
+  declare expectedParticipants: number
+
+  /** Nombre d'inscrits à l'événement (avecCount -> $extras.registrationsCount) */
+  @computed()
+  get registrationsCount(): number {
+    return Number((this.$extras as any).registrationsCount ?? 0)
+  }
 
   @column()
   declare isPublic: boolean

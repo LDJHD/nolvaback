@@ -82,6 +82,7 @@ export default class AdminDirectoryController {
     const query = Event.query()
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'email', 'phone']))
       .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
+      .withCount('registrations')
       .orderBy('created_at', 'desc')
 
     if (search) {
@@ -107,6 +108,7 @@ export default class AdminDirectoryController {
       is_public: vine.boolean().optional(),
       is_featured: vine.boolean().optional(),
       featured_order: vine.number().min(0).optional(),
+      expected_participants: vine.number().min(0).optional(),
       status: vine.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
     })
     const data = await vine.validate({ schema, data: request.all() })
@@ -115,6 +117,9 @@ export default class AdminDirectoryController {
     if (data.is_public !== undefined) event.isPublic = data.is_public
     if (data.is_featured !== undefined) event.isFeatured = data.is_featured
     if (data.featured_order !== undefined) event.featuredOrder = data.featured_order
+    if (data.expected_participants !== undefined) {
+      event.expectedParticipants = data.expected_participants
+    }
     if (data.status !== undefined) event.status = data.status
     await event.save()
 

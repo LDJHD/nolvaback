@@ -51,6 +51,7 @@ export default class EventsController {
       .where('event_date', '>=', DateTime.now().startOf('day').toSQL())
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
       .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
+      .withCount('registrations')
       .orderBy('is_featured', 'desc')
       .orderBy('featured_order', 'desc')
       .orderBy('event_date', 'asc')
@@ -82,6 +83,7 @@ export default class EventsController {
       .where('is_approved', true)
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'avatar']))
       .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
+      .withCount('registrations')
       .firstOrFail()
 
     const ticketTypes = event.ticketTypes.map((tt) => ({
@@ -98,7 +100,9 @@ export default class EventsController {
         ? ticketTypes.reduce((sum, t) => sum + (t.available === 999999 ? 999 : t.available), 0)
         : event.ticketCount > 0
           ? event.ticketCount - event.ticketsSold
-          : null
+          : event.expectedParticipants > 0
+            ? Math.max(0, event.expectedParticipants - event.registrationsCount)
+            : null
 
     return response.ok({
       ...event.serialize(),
@@ -137,6 +141,7 @@ export default class EventsController {
       image: vine.string().optional(),
       ticket_price: vine.number().min(0).optional(),
       ticket_count: vine.number().min(0).optional(),
+      expected_participants: vine.number().min(0).optional(),
       ticket_types: vine.array(ticketTypeRowSchema).optional(),
       event_type: vine.string().trim(),
     })
@@ -181,6 +186,7 @@ export default class EventsController {
       ticketPrice,
       ticketCount,
       ticketsSold: 0,
+      expectedParticipants: data.expected_participants ?? 0,
       isPublic: true,
       isApproved: false,
       status: 'upcoming',
@@ -305,6 +311,7 @@ export default class EventsController {
       event_type: vine.string().trim().optional(),
       ticket_price: vine.number().min(0).optional(),
       ticket_count: vine.number().min(0).optional(),
+      expected_participants: vine.number().min(0).optional(),
       ticket_types: vine.array(ticketTypeRowSchema).optional(),
     })
     const data = await vine.validate({ schema, data: request.all() })
@@ -367,6 +374,10 @@ export default class EventsController {
       if (data.ticket_count !== undefined) event.ticketCount = data.ticket_count
     }
 
+    if (data.expected_participants !== undefined) {
+      event.expectedParticipants = data.expected_participants
+    }
+
     event.isApproved = false
     event.status = 'upcoming'
     event.rejectionReason = null
@@ -387,6 +398,7 @@ export default class EventsController {
       .whereNot('status', 'cancelled')
       .preload('organizer', (q) => q.select(['id', 'first_name', 'last_name', 'email', 'phone']))
       .preload('ticketTypes')
+      .withCount('registrations')
       .orderBy('created_at', 'desc')
 
     return response.ok(events)
@@ -507,10 +519,19 @@ Cliquer pour aller voir : ${eventUrl}`,
       .where('is_approved', true)
       .whereIn('status', ['upcoming', 'ongoing'])
       .preload('ticketTypes', (q) => q.orderBy('sort_order', 'asc'))
+      .withCount('registrations')
       .first()
 
     if (!event) {
       return response.notFound({ message: 'Événement introuvable ou non publié' })
+    }
+
+    // Capacité des événements gratuits : on bloque l'inscription quand le nombre
+    // de participants attendus est atteint.
+    if (event.expectedParticipants > 0 && event.registrationsCount >= event.expectedParticipants) {
+      return response.badRequest({
+        message: 'Cet événement est complet : le nombre de participants attendus est atteint.',
+      })
     }
 
     const ticketTypes = event.ticketTypes
